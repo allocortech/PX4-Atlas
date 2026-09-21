@@ -14,7 +14,37 @@ the two one-bit-only settings. The configured MMC clock divider is unchanged.
 For one-bit operation, disable that option and restore
 `CONFIG_SDIO_WIDTH_D1_ONLY=y` and `CONFIG_SDMMC2_WIDTH_D1_ONLY=y`.
 
-Build with `make allocortech_atlas-v6x_default` after initializing submodules.
+## Building
+
+Build in the PX4 dev container that upstream uses for this release, so the
+binaries reproduce:
+
+```
+podman run --rm -v "$PWD:$PWD" -w "$PWD" \
+  docker.io/px4io/px4-dev-nuttx-focal:2022-08-12 \
+  bash -lc 'git config --global --add safe.directory "*"; \
+            make allocortech_atlas-v6x_default && \
+            make allocortech_atlas-v6x_bootloader'
+```
+
+`px4io/px4-dev-nuttx-focal:2022-08-12` is the image upstream PX4
+`release/1.16` builds NuttX targets in (`.github/workflows/checks.yml`); docker
+works in place of podman. Mount the tree at the same path inside the container
+as outside, because absolute paths end up in the build state. Initialise both
+NuttX submodules first (`nuttx` and `apps`), and do not carry host-built
+helpers from `platforms/nuttx/NuttX/nuttx/tools` into the container.
+
+A build with a different toolchain produces different bytes and a different
+size. The app is close to its flash ceiling, so check the reported FLASH usage
+after any change.
+
+The bootloader build rewrites `extras/allocortech_atlas-v6x_bootloader.bin` in
+the working tree; commit that file when the bootloader is meant to change, and
+restore it otherwise so the committed binary never drifts from the sources
+beside it.
+
+PX4 embeds `git describe` output, so the same sources built from a tag and
+from a branch differ by that string alone (about ten bytes).
 When changing the NuttX pin, push the selected NuttX commit first so fresh
 clones and CI can retrieve it, then commit the PX4 submodule update.
 
